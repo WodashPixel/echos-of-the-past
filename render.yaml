@@ -16,6 +16,8 @@ services:
         sync: false
       - key: DOCX_B64
         sync: false
+      - key: TOKEN_SECRET
+        sync: false
       - key: RATE_LIMIT_MS
         value: "15000"
       - key: ALLOWED_ORIGIN

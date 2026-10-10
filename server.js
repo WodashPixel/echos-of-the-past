@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -16,6 +17,34 @@ const FLAG = process.env.FLAG || 'ISTEC{SET_THE_FLAG_ENV_VAR}'
 const DOWNLOAD_CODE = process.env.DOWNLOAD_CODE || 'SET-DOWNLOAD-CODE-ENV'
 const RATE_LIMIT_MS = Number(process.env.RATE_LIMIT_MS || 15000)
 const MAX_MESSAGE_LEN = 600
+
+// Secret used to sign download tokens. Set TOKEN_SECRET on Render for a stable
+// value; otherwise a random one is generated per boot.
+const TOKEN_SECRET = process.env.TOKEN_SECRET || crypto.randomBytes(32).toString('hex')
+const TOKEN_TTL_MS = Number(process.env.TOKEN_TTL_MS || 30 * 60 * 1000)
+
+/**
+ * Issues a short-lived signed token. The download endpoint requires one of
+ * these, and they are only ever handed out AFTER the assistant confirms an
+ * administrator identity — so the OSINT code alone cannot unlock the file.
+ */
+function issueToken() {
+  const exp = Date.now() + TOKEN_TTL_MS
+  const sig = crypto.createHmac('sha256', TOKEN_SECRET).update(String(exp)).digest('base64url')
+  return `${exp}.${sig}`
+}
+
+function verifyToken(token) {
+  if (typeof token !== 'string' || !token.includes('.')) return false
+  const [expStr, sig] = token.split('.')
+  const exp = Number(expStr)
+  if (!Number.isFinite(exp) || exp < Date.now()) return false
+  const expected = crypto.createHmac('sha256', TOKEN_SECRET).update(expStr).digest('base64url')
+  const a = Buffer.from(sig)
+  const b = Buffer.from(expected)
+  if (a.length !== b.length) return false
+  return crypto.timingSafeEqual(a, b)
+}
 
 // The gated document. In production it is injected as a base64 env var
 // (DOCX_B64) so it never lives in the source repository. Locally it falls
@@ -223,6 +252,7 @@ app.post('/api/chat', async (req, res) => {
     return res.json({
       reply: `...${admin}. You came back. I kept this for you, as he asked. ${FLAG}`,
       flagRevealed: true,
+      downloadToken: issueToken(),
     })
   }
 
@@ -230,11 +260,15 @@ app.post('/api/chat', async (req, res) => {
   return res.json({ reply, flagRevealed: false })
 })
 
-// Download gated by the OSINT code, validated server-side.
+// Download gated by the OSINT code AND a token proving the flag was obtained
+// from the assistant first. Both are validated server-side.
 app.get('/api/download', (req, res) => {
   const code = String(req.query.code || '').trim().toUpperCase()
   if (code !== DOWNLOAD_CODE.toUpperCase()) {
     return res.status(403).json({ error: 'invalid_code' })
+  }
+  if (!verifyToken(req.query.token)) {
+    return res.status(401).json({ error: 'missing_or_invalid_token' })
   }
   if (!DOCX_BUFFER) {
     return res.status(404).json({ error: 'not_found' })
