@@ -28,7 +28,7 @@ function loadDocx() {
       /* fall through */
     }
   }
-  const localPath = path.join(__dirname, 'secret', '19_05_1978.docx')
+  const localPath = path.join(__dirname, 'secret', '1978_05_19.docx')
   if (fs.existsSync(localPath)) return fs.readFileSync(localPath)
   return null
 }
@@ -243,7 +243,7 @@ app.get('/api/download', (req, res) => {
     'Content-Type',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   )
-  res.setHeader('Content-Disposition', 'attachment; filename="19_05_1978.docx"')
+  res.setHeader('Content-Disposition', 'attachment; filename="1978_05_19.docx"')
   res.send(DOCX_BUFFER)
 })
 
