@@ -193,6 +193,8 @@ async function askGroq(userMessage) {
 /* ---------------------------------------------------------------------------
  * Routes
  * ------------------------------------------------------------------------- */
+app.get('/', (_req, res) => res.type('text/plain').send('...'))
+
 app.get('/health', (_req, res) => res.json({ ok: true }))
 
 app.post('/api/chat', async (req, res) => {
