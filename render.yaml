@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: echoes-ai-server
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: qwen/qwen3.8-27b
+      - key: FLAG
+        sync: false
+      - key: DOWNLOAD_CODE
+        sync: false
+      - key: DOCX_B64
+        sync: false
+      - key: RATE_LIMIT_MS
+        value: "15000"
+      - key: ALLOWED_ORIGIN
+        sync: false
